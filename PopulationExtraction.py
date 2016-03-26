@@ -157,11 +157,11 @@ if __name__ == '__main__':
 
     # export the patient ids to select the antibiotics data from SQL database
     pts_bld_ids_sepsis3 = bld2[['subject_id', 'hospital_seq', 'icustay_seq']]
-    pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
+    # pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
 
     # extract the useful bld data columns
     pts_bld = bld2[['new_id', 'itemid', 'charttime']]
-    pts_bld.to_csv('pts_bld.csv', header=True)
+    # pts_bld.to_csv('pts_bld.csv', header=True)
 
     # sort bld culture data by id and charttime
     pts_bld.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=True)
@@ -180,7 +180,7 @@ if __name__ == '__main__':
 
     # extract the useful abx data columns
     pts_abx = abx2[['new_id', 'itemid', 'charttime', 'stop_dt']]
-    pts_abx.to_csv('pts_abx.csv', header=True)
+    # pts_abx.to_csv('pts_abx.csv', header=True)
 
     # get the unique abx patient new_ids
     pts_abx_id = list(set(pts_abx['new_id'].values))
@@ -226,4 +226,4 @@ if __name__ == '__main__':
     # select patients with abx,bld,sofa timinig and value meets the new sepsis definition
     pts_abx_bld_sofa = selectPatients2(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
     pts_abx_bld_sofa_id = list(set(pts_abx_bld_sofa['new_id'].values))
-
+    pts_abx_bld_sofa.to_csv('pts_abx_bld_sofa.csv', header=True)
