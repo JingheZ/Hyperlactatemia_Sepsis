@@ -76,7 +76,7 @@ def selectSort(data, selected_ids):
     :return:
     '''
     data2 = data[data['new_id'].isin(selected_ids)]
-    data2.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=True)
+    data2 = data2.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=False)
     return data2
 
 
@@ -164,7 +164,7 @@ if __name__ == '__main__':
     # pts_bld.to_csv('pts_bld.csv', header=True)
 
     # sort bld culture data by id and charttime
-    pts_bld.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=True)
+    pts_bld = pts_bld.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=False)
 
     # get the unique blood culture patient new_ids
     pts_bld_id = list(set(pts_bld['new_id'].values))
