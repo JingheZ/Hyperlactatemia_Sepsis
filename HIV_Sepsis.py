@@ -59,7 +59,8 @@ def variableExtract(data, event, ptids):
         data2['time_diff'] = map(f2, data2['eventtime'], data2['charttime'])
         data3 = data2[data2['time_diff'] <= 12 * 3600]
         data3 = data3[data3['time_diff'] >= 0]
-        data_dict[pid] = data3
+        if len(data3) > 0:
+            data_dict[pid] = data3
     return data_dict
 
 if __name__ == '__main__':
