@@ -194,8 +194,9 @@ if __name__ == '__main__':
     bld2 = dataClean(bld, [], 'charttime',  [70011, 70012], [])
 
     # export the patient ids to select the antibiotics data from SQL database
-    # pts_bld_ids_sepsis3 = bld2[['subject_id', 'hospital_seq', 'icustay_seq']]
-    # pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
+    pts_bld_ids_sepsis3 = bld2[['subject_id', 'hospital_seq']]
+    pts_bld_ids_sepsis3 = pts_bld_ids_sepsis3.drop_duplicates()
+    pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
 
     # extract the useful bld data columns
     pts_bld = bld2[['new_id', 'itemid', 'charttime']]
