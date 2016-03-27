@@ -47,7 +47,9 @@ def mortalityComputation(data):
 
 
 if __name__ == '__main__':
-    # get all HIV patients that meet this criteria
+
+
+    # ============================= get all HIV patients that meet the sepsis criteria ==============================
     # read hiv patient identified using ICD-9 codes and create patient ids
 
     hiv_pts = pd.read_csv('HIVicd9.csv')
@@ -70,6 +72,9 @@ if __name__ == '__main__':
 
     hiv_sepsis_pts = pts_abx_bld[pts_abx_bld['new_id'].isin(pts_sofa_hiv)]
     hiv_sepsis_pts_id = hiv_sepsis_pts['new_id'].values
+
+    # ========================== analyze patient mortalities =====================================================
+
     # mortality analysis among these patients
     infos_hiv_sepsis = infos[infos['new_id'].isin(hiv_sepsis_pts_id)]
     infos_hiv_sepsis = pd.merge(infos_hiv_sepsis, hiv_sepsis_pts, how='inner', on='new_id')
@@ -77,3 +82,7 @@ if __name__ == '__main__':
     mortalities = mortalityComputation(infos_hiv_sepsis)
 
 
+    # ========================== analyze the prediction performance of MEWS =========================================
+    # ============== get the variables values in MEWS ========================================
+
+    '''Respiratory rate; Heart rate; Systolic blood pressure; Conscious level; Temperature; Hourly urine output (for previous 2 hours)'''
