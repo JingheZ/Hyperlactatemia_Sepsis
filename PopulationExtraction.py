@@ -11,6 +11,8 @@ cd /media/sf_Box_Sync/Hyperlactemia sepsis project_jinghe/Data/
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import cPickle as pickle
+
 
 # create the patient id column
 def createID(subject_id, hospadm_seq, icustay_seq):
@@ -22,12 +24,13 @@ def createID(subject_id, hospadm_seq, icustay_seq):
 def dataClean(data, retrieved_id_name, charttime_name, column_itemid, selected_pt_ids):
     if len(retrieved_id_name) > 0:
         data = data[data[retrieved_id_name].notnull()]
-    pd.to_datetime(data[charttime_name])
+    if len(charttime_name) > 0:
+        pd.to_datetime(data[charttime_name])
+        data = data[data[charttime_name].notnull()]
     # select columns according to itemid and remove NaN
     data = data[data.itemid.notnull()]
     if len(column_itemid) > 0:
         data = data[data.itemid.isin(column_itemid)]
-    data = data[data[charttime_name].notnull()]
     # get the patient id for this dataset
     data['new_id'] = createID(data['subject_id'], data['hospital_seq'], data['icustay_seq'])
     if len(selected_pt_ids) > 0:
@@ -100,7 +103,7 @@ def selectPatients(abx, bld, ptids):
         select = 0
         for j in range(len(abx_times2)):
             for m in range(len(bld_times2)):
-                abx_bld_hours = float((abx_times2[j] - bld_times2[m]).seconds) / 3600
+                abx_bld_hours = (abx_times2[j] - bld_times2[m]).total_seconds() / 3600.
                 if (abx_bld_hours >= -24) and (abx_bld_hours <= 72):
                     select_index.append(i)
                     earlier_time.append(min(abx_times2[j], bld_times2[m]))
@@ -109,7 +112,7 @@ def selectPatients(abx, bld, ptids):
             if select == 1:
                 break
     ptids_selected = np.array(ptids)[select_index]
-    pts_abx_bld = pd.DataFrame({'new_id': ptids_selected, 'earlier_time': earlier_time})
+    pts_abx_bld = pd.DataFrame({'new_id': ptids_selected, 'charttime': earlier_time})
     return pts_abx_bld
 
 
@@ -120,7 +123,7 @@ def selectPatients2(abx_bld, sofa, ptids):
     select_index = []
     for i in range(len(ptids)):
         pid = ptids[i]
-        abx_bld_time = abx_bld[abx_bld['new_id'] == pid]['earlier_time'].values[0]
+        abx_bld_time = abx_bld[abx_bld['new_id'] == pid]['charttime'].values[0]
 
         f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
         sofa_times = sofa[sofa['new_id'] == pid]['charttime'].values
@@ -129,18 +132,52 @@ def selectPatients2(abx_bld, sofa, ptids):
         prior_sofa_values = []
         post_sofa_values = []
         for m in range(len(sofa_times2)):
-            abxbld_sofa_hours = float((abx_bld_time - sofa_times2[m]).seconds) / 3600
+            abxbld_sofa_hours = (abx_bld_time - sofa_times2[m]).total_seconds() / 3600.
             if (abxbld_sofa_hours > 0) and (abxbld_sofa_hours <= 24):
                 prior_sofa_values.append(sofa_values[m])
             elif (abxbld_sofa_hours <= 0) and (abxbld_sofa_hours >= -24):
                 post_sofa_values.append(sofa_values[m])
         if len(prior_sofa_values) == 0:
             prior_sofa_values.append(0)
-        elif (len(post_sofa_values) > 0) and (min(post_sofa_values) - min(prior_sofa_values) >= 2):
+        if (len(post_sofa_values) > 0) and (max(post_sofa_values) - min(prior_sofa_values) >= 2):
             select_index.append(i)
     ptids_selected = np.array(ptids)[select_index]
     pts_abx_bld_sofa = abx_bld[abx_bld['new_id'].isin(ptids_selected)]
     return pts_abx_bld_sofa
+
+
+def selectPatients3(abx_bld, sofa, ptids):
+    '''
+    select patients that meet the abx and bld, who also meet the sofa value and timing criteria of new sepsis definition 3
+    '''
+    select_index = []
+    for i in range(len(ptids)):
+        pid = ptids[i]
+        abx_bld_time = abx_bld[abx_bld['new_id'] == pid]['charttime'].values[0]
+
+        f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+        sofa_times = sofa[sofa['new_id'] == pid]['charttime'].values
+        sofa_times2 = map(f, sofa_times)
+        sofa_values = sofa[sofa['new_id'] == pid]['value1num'].values
+        prior_post_sofa_values = []
+        for m in range(len(sofa_times2)):
+            abxbld_sofa_hours = (abx_bld_time - sofa_times2[m]).total_seconds() / 3600.
+            if (abxbld_sofa_hours <= 24) and (abxbld_sofa_hours >= -24):
+                prior_post_sofa_values.append(sofa_values[m])
+        increase = 0
+        if len(prior_post_sofa_values) == 1:
+            increase = prior_post_sofa_values[0]
+        elif len(prior_post_sofa_values) > 1:
+            increase_all = []
+            for n in range(len(prior_post_sofa_values)-1):
+                increase_all.append(max(prior_post_sofa_values[n+1:]) - prior_post_sofa_values[n])
+            increase = max(increase_all)
+        if increase >= 2:
+            select_index.append(i)
+    ptids_selected = np.array(ptids)[select_index]
+    pts_abx_bld_sofa = abx_bld[abx_bld['new_id'].isin(ptids_selected)]
+    return pts_abx_bld_sofa
+
 
 if __name__ == '__main__':
 
@@ -197,6 +234,9 @@ if __name__ == '__main__':
     pts_abx_bld = selectPatients(pts_abx2, pts_bld2, pts_abx_bld_ids0)
     pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))
 
+    with open('pts_abx_bld_id.pickle', 'wb') as f:
+        pickle.dump(pts_abx_bld_id, f)
+
     #===============Preprocess SOFA Data==============================
     # read the sofa data
     sofa = pd.read_csv("pts_vitals1b.csv")
@@ -219,11 +259,17 @@ if __name__ == '__main__':
     pts_abx_bld_sofa_ids0.sort()
 
     # select patients according to the pts_abx_bld_sofa_ids0
-    pts_abx2 = selectSort(pts_abx, pts_abx_bld_sofa_ids0)
-    pts_bld2 = selectSort(pts_bld, pts_abx_bld_sofa_ids0)
+    # pd.to_datetime(pts_abx_bld['charttime'])
+    # pts_abx_bld2 = selectSort(pts_abx_bld, pts_abx_bld_sofa_ids0)
     pts_sofa2 = selectSort(pts_sofa, pts_abx_bld_sofa_ids0)
 
     # select patients with abx,bld,sofa timinig and value meets the new sepsis definition
     pts_abx_bld_sofa = selectPatients2(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
     pts_abx_bld_sofa_id = list(set(pts_abx_bld_sofa['new_id'].values))
     pts_abx_bld_sofa.to_csv('pts_abx_bld_sofa.csv', header=True)
+
+    # pts_abx_bld_sofa2 = selectPatients3(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
+    # pts_abx_bld_sofa2_id = list(set(pts_abx_bld_sofa2['new_id'].values))
+
+
+
