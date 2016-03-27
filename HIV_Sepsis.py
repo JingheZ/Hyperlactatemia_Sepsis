@@ -45,6 +45,22 @@ def mortalityComputation(data):
     return result
 
 
+def variableExtract(data, event, ptids):
+    data_dict = {}
+    for i in range(len(ptids)):
+        pid = ptids[i]
+        eventtime = event[event['new_id'] == pid]['charttime'].values
+        data2 = data[data['new_id'] == pid]
+        data2['eventtime'] = list(eventtime) * len(data2)
+        f1 = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+        data2['charttime'] = map(f1, data2['charttime'])
+
+        f2 = lambda x, y: (x - y).total_seconds()
+        data2['time_diff'] = map(f2, data2['eventtime'], data2['charttime'])
+        data3 = data2[data2['time_diff'] <= 12 * 3600]
+        data3 = data3[data3['time_diff'] >= 0]
+        data_dict[pid] = data3
+    return data_dict
 
 if __name__ == '__main__':
 
@@ -85,4 +101,19 @@ if __name__ == '__main__':
     # ========================== analyze the prediction performance of MEWS =========================================
     # ============== get the variables values in MEWS ========================================
 
-    '''Respiratory rate; Heart rate; Systolic blood pressure; Conscious level; Temperature; Hourly urine output (for previous 2 hours)'''
+    '''Respiratory rate (618); Heart rate (211); Systolic blood pressure (455 value1num ); Conscious level(GCS 198); Temperature (678); Hourly urine output (for previous 2 hours)'''
+    charts = pd.read_csv("pts_vitals1b.csv")
+    # get the hospital_seq info for sofa data
+    hospseqs = pd.read_csv('hospseqs_vitals.csv', header=None)
+    hospseqs.columns = ['hospital_seq']
+    charts['hospital_seq'] = hospseqs['hospital_seq']
+    items = [618, 678, 198, 455, 211]
+    charts2 = extraction.dataClean(charts, 'hospital_seq', 'charttime',  items, hiv_sepsis_pts_id)
+
+    charts3 = charts2[['new_id', 'charttime', 'itemid', 'value1num']]
+    charts3 = charts3.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=False)
+    ptids = list(set(hiv_sepsis_pts_id).intersection(set(charts3['new_id'].values)))
+    ptids.sort()
+
+    # get the IV fluids of patients
+    variables = variableExtract(charts3, pts_abx_bld, ptids)
