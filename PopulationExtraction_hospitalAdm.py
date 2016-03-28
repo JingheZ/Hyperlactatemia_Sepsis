@@ -26,7 +26,7 @@ def dataClean(data, retrieved_id_name, charttime_name, column_itemid, selected_p
     if len(retrieved_id_name) > 0:
         data = data[data[retrieved_id_name].notnull()]
     if len(charttime_name) > 0:
-        pd.to_datetime(data[charttime_name])
+        # pd.to_datetime(data[charttime_name])
         data = data[data[charttime_name].notnull()]
     # select columns according to itemid and remove NaN
     data = data[data.itemid.notnull()]
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
     #===============Preprocess Blood Culture Data==============================
     # read the blood culture data
-    bld = pd.read_csv("pts_bldcultures3_new.csv")
+    bld = pd.read_csv("pts_bldcultures3_new2.csv")
 
     # get the icuseq info for bld culture
     # icuseqs = pd.read_csv('icuseqs_blds.csv', header=None)
@@ -207,12 +207,12 @@ if __name__ == '__main__':
 
     # get the unique blood culture patient new_ids
     pts_bld_id = list(set(pts_bld['new_id'].values))
-    pts_bld_id.sort()
+    pts_bld_id.sort() # 13,812
 
 
      #===============Preprocess Antibiotics Data==============================
     # read the abx data
-    abx = pd.read_csv("pts_bld_sepsis3_antibiotics.csv")
+    abx = pd.read_csv("pts_bld_sepsis3_antibiotics_hospitaladm.csv")
     abx = abx.rename(columns={'start_dt': 'charttime'})
     abx = abx.rename(columns={'drug': 'itemid'})
     abx2 = dataClean(abx, [], 'charttime', [], pts_bld_id)
@@ -234,19 +234,19 @@ if __name__ == '__main__':
 
     # select patients with abx and bld timinig meets the new sepsis definition
     pts_abx_bld = selectPatients(pts_abx2, pts_bld2, pts_abx_bld_ids0)
-    pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))
+    pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))  #9,117 patients
     #
     # with open('pts_abx_bld_id.pickle', 'wb') as f:
     #     pickle.dump(pts_abx_bld_id, f)
 
     #===============Preprocess SOFA Data==============================
     # read the sofa data
-    sofa = pd.read_csv("pts_vitals1b.csv")
+    charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
     # get the hospital_seq info for sofa data
-    hospseqs = pd.read_csv('hospseqs_vitals.csv', header=None)
-    hospseqs.columns = ['hospital_seq']
-    sofa['hospital_seq'] = hospseqs['hospital_seq']
-    sofa2 = dataClean(sofa, 'hospital_seq', 'charttime',  [20009], pts_abx_bld_id)
+    # hospseqs = pd.read_csv('hospseqs_vitals.csv', header=None)
+    # hospseqs.columns = ['hospital_seq']
+    # sofa['hospital_seq'] = hospseqs['hospital_seq']
+    sofa2 = dataClean(charts, [], 'charttime',  [20009], [])
 
     # extract the useful abx data columns
     pts_sofa = sofa2[['new_id', 'itemid', 'charttime', 'value1num']]
@@ -267,11 +267,11 @@ if __name__ == '__main__':
 
     # select patients with abx,bld,sofa timinig and value meets the new sepsis definition
     pts_abx_bld_sofa = selectPatients2(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
-    pts_abx_bld_sofa_id = list(set(pts_abx_bld_sofa['new_id'].values))
+    pts_abx_bld_sofa_id = set(pts_abx_bld_sofa['new_id'].values) # 2,836
     # pts_abx_bld_sofa.to_csv('pts_abx_bld_sofa.csv', header=True)
 
-    # pts_abx_bld_sofa2 = selectPatients3(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
-    # pts_abx_bld_sofa2_id = list(set(pts_abx_bld_sofa2['new_id'].values))
+    pts_abx_bld_sofa2 = selectPatients3(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
+    pts_abx_bld_sofa2_id = set(pts_abx_bld_sofa2['new_id'].values)
 
-
+    pts_abx_bld_sofa_id_all = pts_abx_bld_sofa_id.union(pts_abx_bld_sofa2_id) # 2,947 pts
 

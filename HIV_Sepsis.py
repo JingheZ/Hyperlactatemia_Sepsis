@@ -11,6 +11,18 @@ from datetime import datetime
 import PopulationExtraction as extraction
 import cPickle as pickle
 
+def Convert2Time(data, colname):
+    f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+    times = map(f, data[colname])
+    return times
+
+
+def timeDiff(times1, times2):
+    f = lambda x, y: (x - y).total_seconds() / 3600.
+    diffs = map(f, times1, times2)
+    return diffs
+
+
 
 def mortalityComputation(data):
     result = {}
@@ -46,22 +58,24 @@ def mortalityComputation(data):
 
 
 def variableExtract(data, event, ptids):
-    data_dict = {}
+    # data_dict = {}
+    data_dict = []
     for i in range(len(ptids)):
         pid = ptids[i]
-        eventtime = event[event['new_id'] == pid]['charttime'].values
+        eventtime = event[event['new_id'] == pid]['charttime'].values[0]
         data2 = data[data['new_id'] == pid]
-        data2['eventtime'] = list(eventtime) * len(data2)
         f1 = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
         data2['charttime'] = map(f1, data2['charttime'])
 
         f2 = lambda x, y: (x - y).total_seconds()
-        data2['time_diff'] = map(f2, data2['eventtime'], data2['charttime'])
-        data3 = data2[data2['time_diff'] <= 12 * 3600]
+        data2['time_diff'] = map(f2, [eventtime]*len(data2), data2['charttime'])
+        data3 = data2[data2['time_diff'] <= 24 * 3600]
         data3 = data3[data3['time_diff'] >= 0]
         if len(data3) > 0:
-            data_dict[pid] = data3
+        #     data_dict[pid] = data3
+            data_dict.append(data3)
     return data_dict
+
 
 if __name__ == '__main__':
 
@@ -76,6 +90,17 @@ if __name__ == '__main__':
 
     infos = pd.read_csv('pticu_infos.csv')
     infos['new_id'] = extraction.createID(infos['subject_id'], infos['hospital_seq'], infos['icustay_seq'])
+
+    infos['hospital_disch_dt'] = Convert2Time(infos, 'hospital_disch_dt')
+    infos['hospital_admit_dt'] = Convert2Time(infos, 'hospital_admit_dt')
+
+    infos['icustay_intime'] = Convert2Time(infos, 'icustay_intime')
+    infos['icustay_outtime'] = Convert2Time(infos, 'icustay_outtime')
+
+    infos['icustay_los'] = timeDiff(infos['icustay_outtime'], infos['icustay_intime'])
+    infos['hospital_los'] = timeDiff(infos['hospital_disch_dt'], infos['hospital_admit_dt'])
+    (pd.Series(infos['icustay_los'])).plot(kind='hist')
+
     # select only patients with max SOFA >= 2
     infos_sofa2 = infos[infos['sofa_max'] >= 2]
     infos_sofa2_id = infos_sofa2['new_id'].values
@@ -117,4 +142,5 @@ if __name__ == '__main__':
     ptids.sort()
 
     # get the IV fluids of patients
-    variables = variableExtract(charts3, pts_abx_bld, ptids)
+    variables = variableExtract(charts3, infos_hiv_sepsis, ptids)
+    x = infos_hiv_sepsis[['icustay_intime', 'icustay_outtime', 'charttime']]
