@@ -23,6 +23,10 @@ def createID(subject_id, hospadm_seq):
 
 # clean dataset, such as removing NaN and convert to correct data types
 def dataClean(data, retrieved_id_name, charttime_name, column_itemid, selected_pt_ids):
+    # get the patient id for this dataset
+    data['new_id'] = createID(data['subject_id'], data['hospital_seq'])
+    if len(selected_pt_ids) > 0:
+        data = data[data['new_id'].isin(selected_pt_ids)]
     if len(retrieved_id_name) > 0:
         data = data[data[retrieved_id_name].notnull()]
     if len(charttime_name) > 0:
@@ -32,10 +36,6 @@ def dataClean(data, retrieved_id_name, charttime_name, column_itemid, selected_p
     data = data[data.itemid.notnull()]
     if len(column_itemid) > 0:
         data = data[data.itemid.isin(column_itemid)]
-    # get the patient id for this dataset
-    data['new_id'] = createID(data['subject_id'], data['hospital_seq'])
-    if len(selected_pt_ids) > 0:
-        data = data[data['new_id'].isin(selected_pt_ids)]
     return data
 
 
@@ -180,6 +180,88 @@ def selectPatients3(abx_bld, sofa, ptids):
     return pts_abx_bld_sofa
 
 
+def lactateTimes(ptEvents, lactates, ptids):
+    select_pt_hl = [] # ptids of those with high lactate > 2
+    lactateVevent = []
+    lactateTevent = []
+    clear_times = []
+    normal_times = []
+    last_lactate_times = []
+    sepsis_time = []
+    for i in range(len(ptids)):
+        pid = ptids[i]
+        eventtime = ptEvents[ptEvents['new_id'] == pid]['charttime'].values[0]
+        f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+        lactate_times = lactates[lactates['new_id'] == pid]['charttime'].values
+        lactate_times2 = map(f, lactate_times)
+        lactate_values = lactates[lactates['new_id'] == pid]['valuenum'].values
+        lactateT = ''
+        lactateV = ''
+        t = 0
+        # get the lactate closest to the time of event
+        for m in range(len(lactate_times2)):
+            diff_hours = (eventtime - lactate_times2[m]).total_seconds() / 3600.
+            if (diff_hours <= 48) and (diff_hours >= 0) and (lactate_values[m] > 2):
+                lactateT = lactate_times2[m]
+                lactateV = lactate_values[m]
+                t = m
+        if lactateV != '':
+            select_pt_hl.append(pid)
+            lactateTevent.append(lactateT)
+            lactateVevent.append(lactateV)
+            # get the lactate clear time and normalization time
+            clearT = ''
+            normalT = ''
+            for n in range(t+1, len(lactate_times2)):
+                if lactate_values[n] <= 0.9 * lactateV:
+                    clearT = lactate_times2[n]
+                if lactate_values[n] <= 2:
+                    normalT = lactate_times2[n]
+            clear_times.append(clearT)
+            normal_times.append(normalT)
+            last_lactate_times.append(lactate_times2[-1])
+            sepsis_time.append(eventtime)
+
+    return [select_pt_hl, sepsis_time, lactateVevent, lactateTevent, clear_times, normal_times, last_lactate_times]
+
+
+def timeDiff(times1, times2):
+    f = lambda x, y: (x - y).total_seconds() / 3600. if x != '' else ''
+    diffs = map(f, times1, times2)
+    return diffs
+
+
+def fillResponse(time):
+    f = lambda x: 1 if x != '' else 0
+    response = map(f, time)
+    return response
+
+
+def fillEmpty(time1, time2):
+    f = lambda x, y: x if x != '' else y
+    response = map(f, time1, time2)
+    return response
+
+
+def extractPredictor(data, events, ptids):
+    data_new = []
+    for i in range(len(ptids)):
+        pid = ptids[i]
+        eventtime = events[events['new_id'] == pid]['sepsis_time'].values[0]
+        f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+        times = data[data['new_id'] == pid]['charttime'].values
+        times2 = map(f, times)
+        variables = []
+        data2 = data[data['new_id'] == pid]
+        for m in range(len(times2)):
+            diff_hours = (eventtime - times2[m]).total_seconds() / 3600.
+            if (diff_hours <= 12) and (diff_hours >= 0):
+                variables.append(data2.iloc[m])
+        data_new.append(variables)
+    return data_new
+
+
+
 if __name__ == '__main__':
 
     #===============Preprocess Blood Culture Data==============================
@@ -227,7 +309,7 @@ if __name__ == '__main__':
 
     # get the intersect patient ids from bld and abx data
     pts_abx_bld_ids0 = list(set(pts_abx_id).intersection(set(pts_bld_id)))
-    pts_abx_bld_ids0.sort()
+    pts_abx_bld_ids0.sort() # 9,775
     # select patients according to the pts_abx_bld_ids0
     pts_abx2 = selectSort(pts_abx, pts_abx_bld_ids0)
     pts_bld2 = selectSort(pts_bld, pts_abx_bld_ids0)
@@ -258,7 +340,7 @@ if __name__ == '__main__':
 
     # get the intersect patient ids from bld and abx data
     pts_abx_bld_sofa_ids0 = list(set(pts_abx_bld_id).intersection(set(pts_sofa_id)))
-    pts_abx_bld_sofa_ids0.sort()
+    pts_abx_bld_sofa_ids0.sort()  # 8,904
 
     # select patients according to the pts_abx_bld_sofa_ids0
     # pd.to_datetime(pts_abx_bld['charttime'])
@@ -271,7 +353,81 @@ if __name__ == '__main__':
     # pts_abx_bld_sofa.to_csv('pts_abx_bld_sofa.csv', header=True)
 
     pts_abx_bld_sofa2 = selectPatients3(pts_abx_bld, pts_sofa2, pts_abx_bld_sofa_ids0)
-    pts_abx_bld_sofa2_id = set(pts_abx_bld_sofa2['new_id'].values)
+    pts_abx_bld_sofa2_id = set(pts_abx_bld_sofa2['new_id'].values) #2,915
 
-    pts_abx_bld_sofa_id_all = pts_abx_bld_sofa_id.union(pts_abx_bld_sofa2_id) # 2,947 pts
+    pts_abx_bld_sofa_id_all = list(pts_abx_bld_sofa_id.union(pts_abx_bld_sofa2_id)) # 2,947 pts
 
+    with open('ptids_sepsis3def.pickle', 'wb') as f:
+        pickle.dump(pts_abx_bld_sofa_id_all, f)
+
+    pd.Series(pts_abx_bld_sofa_id_all).to_csv('ptids_sepsis3def.csv', header=True)
+
+    # get the patients with lactate values
+    # ===lactate values from charts=========
+    lactate_charts = dataClean(charts, [], 'charttime',  [1531, 818], pts_abx_bld_sofa_id_all)
+    lactate_charts = lactate_charts[['new_id', 'charttime', 'itemid', 'value1num']]
+    lactate_charts = lactate_charts.rename(columns={'value1num': 'valuenum'})
+
+    # ===lactate values from lab tests=========
+    labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
+    lactate_labs = dataClean(labs, [], 'charttime',  [50010], pts_abx_bld_sofa_id_all)
+    lactate_labs = lactate_labs[['new_id', 'charttime', 'itemid', 'valuenum']]
+
+    #combine the lactates from both charts and tests=========
+    lactates = pd.concat([lactate_charts, lactate_labs])
+    lactates = lactates.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=False)
+
+    sepsis_lactate_ids0 = list(set(lactates['new_id'].values).intersection(set(pts_abx_bld_sofa_id_all)))
+    sepsis_lactate_ids0.sort()  # 2,501
+
+    # get the lactate clearance time and
+    sepsis_lactate_infos = lactateTimes(pts_abx_bld, lactates, sepsis_lactate_ids0)
+        # 795 patients when use -24 ~ 0 hours with at least one lactate > 2
+        # 836 patients when use -48 ~ 0 hours with at least one lactate > 2 *
+
+    sepsis_lactate_infos_pd = pd.DataFrame(sepsis_lactate_infos).transpose()
+    sepsis_lactate_infos_pd.columns = ['new_id', 'sepsis_time', 'sepsis_lac_value', 'sepsis_lac_time', 'clear_time', 'normalize_time', 'last_lac_time']
+
+    sepsis_lactate_id = sepsis_lactate_infos[0]
+    with open('ptids_sepsis3def_lactate2.pickle', 'wb') as f:
+        pickle.dump(sepsis_lactate_id, f)
+
+    pd.Series(sepsis_lactate_id).to_csv('ptids_sepsis3def_lactate2.csv', header=True)
+
+    #=====================extract the lab and vitals of the patients who meet the sepsis 3 definition and lactate > 2==============
+    # y response: the patient is able to clear lactate in 12 hours from sepsis onset
+    sepsis_lactate_infos_pd['clear_duration'] = timeDiff(sepsis_lactate_infos_pd['clear_time'], sepsis_lactate_infos_pd['sepsis_time'])
+    sepsis_lactate_infos_pd['normalize_duration'] = timeDiff(sepsis_lactate_infos_pd['normalize_time'], sepsis_lactate_infos_pd['sepsis_time'])
+    sepsis_lactate_infos_pd['last_duration'] = timeDiff(sepsis_lactate_infos_pd['last_lac_time'], sepsis_lactate_infos_pd['sepsis_time'])
+
+    sepsis_lactate_infos_pd['cleared?'] = fillResponse(sepsis_lactate_infos_pd['clear_time'])
+    sepsis_lactate_infos_pd['normalized?'] = fillResponse(sepsis_lactate_infos_pd['normalize_time'])
+
+    sepsis_lactate_infos_pd['clear_duration'] = fillEmpty(sepsis_lactate_infos_pd['clear_duration'], sepsis_lactate_infos_pd['last_duration'])
+    sepsis_lactate_infos_pd['normalize_duration'] = fillEmpty(sepsis_lactate_infos_pd['normalize_duration'], sepsis_lactate_infos_pd['last_duration'])
+
+    sepsis_lactate_infos_pd2 = sepsis_lactate_infos_pd[sepsis_lactate_infos_pd['last_duration'] > 0] # 718 patients
+    sepsis_lactate_id2 = sepsis_lactate_infos_pd2['new_id'].values
+
+    # select vital signs for these patients
+    charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
+    charts_x = dataClean(charts, [], 'charttime',  [211, 618, 678, 455, 198, 52], sepsis_lactate_id)
+
+    charts_variables0 = extractPredictor(charts_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
+    # charts_variables = pd.DataFrame(charts_variables0).transpose()
+    # charts_variables.columns = ['new_id', 'charttime', 'itemid', 'value1num', 'value2num']
+    # charts_ids = set(charts_variables[charts_variables['new_id']].values)
+
+
+    # select lab tests for these patients
+    labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
+    item_labs = [50060, 50061, 50062, 50073, 50002, 50025, 50172, 50177, 50079, 50090, 50013, 50006, 50112, 50386, 50383,
+                 50007, 50184, 50140, 50419, 50395, 50015, 50440, 50016, 50018, 50428, 50429, 50019, 50009, 50149, 50439,
+                 50399, 50012, 50159, 50170, 50171, 50316, 50122, 50188, 50068, 50091, 50148, 50451, 50316, 50468]
+    labs_x = dataClean(labs, [], 'charttime',  item_labs, sepsis_lactate_id)
+
+    labs_x = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
+    labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
+    # labs_variables = pd.DataFrame(labs_variables0).transpose()
+    # labs_variables.columns = ['new_id', 'charttime', 'itemid', 'valuenum']
+    # labs_ids = set(labs_variables[labs_variables['new_id']].values)

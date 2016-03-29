@@ -79,7 +79,6 @@ def variableExtract(data, event, ptids):
 
 if __name__ == '__main__':
 
-
     # ============================= get all HIV patients that meet the sepsis criteria ==============================
     # read hiv patient identified using ICD-9 codes and create patient ids
 
