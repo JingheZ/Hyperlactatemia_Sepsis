@@ -361,6 +361,12 @@ if __name__ == '__main__':
 
     pd.Series(pts_abx_bld_sofa_id_all).to_csv('ptids_sepsis3def.csv', header=True)
 
+#=================================================================================================================
+
+    with open('ptids_sepsis3def.pickle', 'rb') as f:
+        pts_abx_bld_sofa_id_all = pickle.load(f)
+
+
     # get the patients with lactate values
     # ===lactate values from charts=========
     lactate_charts = dataClean(charts, [], 'charttime',  [1531, 818], pts_abx_bld_sofa_id_all)
@@ -392,6 +398,7 @@ if __name__ == '__main__':
         pickle.dump(sepsis_lactate_id, f)
 
     pd.Series(sepsis_lactate_id).to_csv('ptids_sepsis3def_lactate2.csv', header=True)
+
 
     #=====================extract the lab and vitals of the patients who meet the sepsis 3 definition and lactate > 2==============
     # y response: the patient is able to clear lactate in 12 hours from sepsis onset
@@ -435,7 +442,6 @@ if __name__ == '__main__':
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     labs_variables = pd.DataFrame(labs_variables0).transpose()
     labs_variables.columns = ['new_id', 'charttime', 'itemid', 'valuenum']
-    labs_ids = set(labs_variables[labs_variables['new_id']].values)
-
+    labs_ids = set(labs_variables['new_id'].values)  # patients
 
     charts_labs = pd.concat([charts_variables, labs_variables])
