@@ -257,9 +257,8 @@ def extractPredictor(data, events, ptids):
             diff_hours = (eventtime - times2[m]).total_seconds() / 3600.
             if (diff_hours <= 12) and (diff_hours >= 0):
                 variables.append(data2.iloc[m])
-        data_new.append(variables)
+        data_new += variables
     return data_new
-
 
 
 if __name__ == '__main__':
@@ -411,12 +410,18 @@ if __name__ == '__main__':
 
     # select vital signs for these patients
     charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
-    charts_x = dataClean(charts, [], 'charttime',  [211, 618, 678, 455, 198, 52], sepsis_lactate_id)
+    charts_x = dataClean(charts, [], 'charttime',  [211, 618, 678, 455, 198, 52], sepsis_lactate_id2)
+    # get the diastolic BP
+    charts_SDBP = charts_x[charts_x['itemid'] == 455]
+    charts_SDBP['itemid'] = 4552
+    charts_SDBP['value1num'] = charts_SDBP['value2num']
+    charts_x = pd.concat([charts_x, charts_SDBP])
+    charts_x = charts_x[['new_id', 'charttime', 'itemid', 'value1num']]
+    charts_x2 = charts_x.rename(columns={'value1num': 'valuenum'})
 
-    charts_variables0 = extractPredictor(charts_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
-    # charts_variables = pd.DataFrame(charts_variables0).transpose()
-    # charts_variables.columns = ['new_id', 'charttime', 'itemid', 'value1num', 'value2num']
-    # charts_ids = set(charts_variables[charts_variables['new_id']].values)
+    charts_variables0 = extractPredictor(charts_x2, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
+    charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
+    charts_ids = set(charts_variables['new_id'].values) # 618 patients
 
 
     # select lab tests for these patients
@@ -424,10 +429,13 @@ if __name__ == '__main__':
     item_labs = [50060, 50061, 50062, 50073, 50002, 50025, 50172, 50177, 50079, 50090, 50013, 50006, 50112, 50386, 50383,
                  50007, 50184, 50140, 50419, 50395, 50015, 50440, 50016, 50018, 50428, 50429, 50019, 50009, 50149, 50439,
                  50399, 50012, 50159, 50170, 50171, 50316, 50122, 50188, 50068, 50091, 50148, 50451, 50316, 50468]
-    labs_x = dataClean(labs, [], 'charttime',  item_labs, sepsis_lactate_id)
+    labs_x = dataClean(labs, [], 'charttime',  item_labs, sepsis_lactate_id2)
 
     labs_x = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
-    # labs_variables = pd.DataFrame(labs_variables0).transpose()
-    # labs_variables.columns = ['new_id', 'charttime', 'itemid', 'valuenum']
-    # labs_ids = set(labs_variables[labs_variables['new_id']].values)
+    labs_variables = pd.DataFrame(labs_variables0).transpose()
+    labs_variables.columns = ['new_id', 'charttime', 'itemid', 'valuenum']
+    labs_ids = set(labs_variables[labs_variables['new_id']].values)
+
+
+    charts_labs = pd.concat([charts_variables, labs_variables])
