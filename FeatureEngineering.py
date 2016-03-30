@@ -148,3 +148,5 @@ if __name__ == '__main__':
     Xs_0['Response'] = 0
 
     matrix_data = pd.concat([Xs_1, Xs_0])
+    with open('matrix_data_sepsis3_clear24_vitals.pickle', 'wb') as f:
+        pickle.dump(matrix_data, f)
