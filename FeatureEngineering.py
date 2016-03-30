@@ -69,16 +69,23 @@ def variableNames():
     #          'Sodium', '']
     codes = [u'52.0-1', u'198.0-1', u'211.0-1', u'455.0-1', u'618.0-1', u'678.0-1', u'4552.0-1', u'52.0-2', u'198.0-2',
              u'211.0-2', u'455.0-2', u'618.0-2', u'678.0-2', u'4552.0-2', u'52.0-3', u'198.0-3', u'211.0-3', u'455.0-3',
-             u'618.0-3', u'678.0-3', u'4552.0-3']
-    names = ['MAP-1', 'GCS-1', 'HR-1', 'SystolicBP-1', 'RR-1', 'Temp-1', 'DiastolicBP-1',
-             'MAP-2', 'GCS-2', 'HR-2', 'SystolicBP-2', 'RR-2', 'Temp-2', 'DiastolicBP-2',
-             'MAP-3', 'GCS-3', 'HR-3', 'SystolicBP-3', 'RR-3', 'Temp-3', 'DiastolicBP-3']
+             u'618.0-3', u'678.0-3', u'4552.0-3', u'new_id', u'Response']
+    names = ['MAP1', 'GCS1', 'HR1', 'SystolicBP1', 'RR1', 'Temp1', 'DiastolicBP1',
+             'MAP2', 'GCS2', 'HR2', 'SystolicBP2', 'RR2', 'Temp2', 'DiastolicBP2',
+             'MAP3', 'GCS3', 'HR3', 'SystolicBP3', 'RR3', 'Temp3', 'DiastolicBP3', 'new_id', 'Response']
 
     code2name_dict = dict.fromkeys(codes)
     for i in range(len(codes)):
         code2name_dict[codes[i]] = names[i]
     return code2name_dict
 
+
+
+def UseNames(names_dict, cols):
+    cols2 = []
+    for c in cols:
+        cols2.append(names_dict[c])
+    return cols2
 
 
 
@@ -96,7 +103,7 @@ if __name__ == '__main__':
     # groupby to create a subset of data for each patient
 
 
-    charts_labs = charts_variables
+    # charts_labs = charts_variables
     charts_labs_table_1 = charts_labs.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-1:])
     charts_labs_table_2 = charts_labs.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-2:-1])
     charts_labs_table_3 = charts_labs.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-3:-2])
@@ -113,9 +120,14 @@ if __name__ == '__main__':
     cols_new = removeCols(charts_labs_table, charts_labs_table.columns, np.round(len(charts_labs_table)/2))
     charts_labs_table_b = charts_labs_table[cols_new] # 21 columns left
     # remove the variables with at least half columns are missing
-    charts_labs_table_b['<halfMissing?'] = removeRows(charts_labs_table_b, 3)
+    charts_labs_table_b['<halfMissing?'] = removeRows(charts_labs_table_b, 15)
     charts_labs_table_c = charts_labs_table_b[charts_labs_table_b['<halfMissing?'] == 1]
     del charts_labs_table_c['<halfMissing?']
+
+
+
+
+
 
     names = variableNames()
 
@@ -148,5 +160,8 @@ if __name__ == '__main__':
     Xs_0['Response'] = 0
 
     matrix_data = pd.concat([Xs_1, Xs_0])
+    matrix_data.columns = UseNames(names, matrix_data.columns)
     with open('matrix_data_sepsis3_clear24_vitals.pickle', 'wb') as f:
         pickle.dump(matrix_data, f)
+
+    matrix_data.to_csv('matrix_data_sepsis3_clear24_vitals.csv', header=True, index=False)

@@ -261,6 +261,20 @@ def extractPredictor(data, events, ptids):
     return data_new
 
 
+def consistentItemid(labs_x):
+    labs_x2 = labs_x
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50172], 50025)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50014], 50013)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50112], 50006)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50386], 50007)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50395], 50419)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50460], 50440)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50429], 50428)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50149], 50009)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50159], 50012)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([50468], 50316)
+    return labs_x2
+
 if __name__ == '__main__':
 
     #===============Preprocess Blood Culture Data==============================
@@ -446,15 +460,20 @@ if __name__ == '__main__':
 
     # select lab tests for these patients
     labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
-    item_labs = [50060, 50061, 50062, 50073, 50002, 50025, 50172, 50177, 50079, 50090, 50013, 50006, 50112, 50386, 50383,
+    item_labs = [50014, 50460, 50060, 50061, 50062, 50073, 50002, 50025, 50172, 50177, 50079, 50090, 50013, 50006, 50112, 50386, 50383,
                  50007, 50184, 50140, 50419, 50395, 50015, 50440, 50016, 50018, 50428, 50429, 50019, 50009, 50149, 50439,
                  50399, 50012, 50159, 50170, 50171, 50316, 50122, 50188, 50068, 50091, 50148, 50451, 50316, 50468]
     labs_x = dataClean(labs, [], 'charttime',  item_labs, sepsis_lactate_id2)
 
     labs_x = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
+    labs_x2 = consistentItemid(labs_x)
+
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     labs_variables = pd.DataFrame(labs_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
     labs_ids = set(labs_variables['new_id'].values)  # patients
+
+    with open('labs_variables_sepsis3.pickle', 'wb') as f:
+        pickle.dump(labs_variables, f)
 
     charts_labs = pd.concat([charts_variables, labs_variables])
     charts_labs = charts_labs.sort(['new_id', 'itemid', 'charttime'], ascending=[1, 1, 1], inplace=False)
