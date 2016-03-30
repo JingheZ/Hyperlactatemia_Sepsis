@@ -457,8 +457,8 @@ if __name__ == '__main__':
     labs_ids = set(labs_variables['new_id'].values)  # patients
 
     charts_labs = pd.concat([charts_variables, labs_variables])
-
+    charts_labs = charts_labs.sort(['new_id', 'itemid', 'charttime'], ascending=[1, 1, 1], inplace=False)
     with open('predictors_sepsis3.pickle', 'wb') as f:
         pickle.dump(charts_labs, f)
 
-        
+
