@@ -393,6 +393,12 @@ if __name__ == '__main__':
     sepsis_lactate_infos_pd = pd.DataFrame(sepsis_lactate_infos).transpose()
     sepsis_lactate_infos_pd.columns = ['new_id', 'sepsis_time', 'sepsis_lac_value', 'sepsis_lac_time', 'clear_time', 'normalize_time', 'last_lac_time']
 
+    with open('sepsis_lactate_infos.pickle', 'wb') as f:
+        pickle.dump(sepsis_lactate_infos_pd, f)
+
+    sepsis_lactate_infos_pd.to_csv('sepsis_lactate_infos.csv', header=True)
+
+
     sepsis_lactate_id = sepsis_lactate_infos[0]
     with open('ptids_sepsis3def_lactate2.pickle', 'wb') as f:
         pickle.dump(sepsis_lactate_id, f)
@@ -415,6 +421,11 @@ if __name__ == '__main__':
     sepsis_lactate_infos_pd2 = sepsis_lactate_infos_pd[sepsis_lactate_infos_pd['last_duration'] > 0] # 718 patients
     sepsis_lactate_id2 = sepsis_lactate_infos_pd2['new_id'].values
 
+    with open('sepsis_lactate_infos_times.pickle', 'wb') as f:
+        pickle.dump(sepsis_lactate_infos_pd2, f)
+
+    sepsis_lactate_infos_pd2.to_csv('sepsis_lactate_infos_times.csv', header=True)
+
     # select vital signs for these patients
     charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
     charts_x = dataClean(charts, [], 'charttime',  [211, 618, 678, 455, 198, 52], sepsis_lactate_id2)
@@ -430,6 +441,8 @@ if __name__ == '__main__':
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
     charts_ids = set(charts_variables['new_id'].values) # 618 patients
 
+    with open('charts_variables_sepsis3.pickle', 'wb') as f:
+        pickle.dump(charts_variables, f)
 
     # select lab tests for these patients
     labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
@@ -440,8 +453,12 @@ if __name__ == '__main__':
 
     labs_x = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
-    labs_variables = pd.DataFrame(labs_variables0).transpose()
-    labs_variables.columns = ['new_id', 'charttime', 'itemid', 'valuenum']
+    labs_variables = pd.DataFrame(labs_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
     labs_ids = set(labs_variables['new_id'].values)  # patients
 
     charts_labs = pd.concat([charts_variables, labs_variables])
+
+    with open('predictors_sepsis3.pickle', 'wb') as f:
+        pickle.dump(charts_labs, f)
+
+        
