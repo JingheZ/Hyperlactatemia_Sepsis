@@ -14,7 +14,7 @@ import cPickle as pickle
 import PopulationExtraction_hospitalAdm as populations
 import matplotlib.pyplot as plt
 from scipy.stats import mode
-
+from sklearn import preprocessing
 
 def lastsValues(d, n=3):
     f = lambda d: d[-1]
@@ -33,8 +33,8 @@ def draw_histograms(df, variables, n_rows, n_cols, names):
         ax = fig.add_subplot(n_rows, n_cols, i+1)
         df[var_name].hist(bins=20, ax=ax, figsize=(15, 15))
         ax.set_title(names[var_name], fontsize=14)
-        ax.set_xticklabels(map(int, ax.get_xticks()), fontsize=12)
-        ax.set_yticklabels(map(int, ax.get_yticks()), fontsize=12)
+        ax.set_xticklabels(map(int, ax.get_xticks()), fontsize=10)
+        ax.set_yticklabels(map(int, ax.get_yticks()), fontsize=10)
     fig.tight_layout()  # Improves appearance a bit.
     plt.show()
 
@@ -67,12 +67,32 @@ def variableNames():
     # names = ['MAP', 'GCS', 'HR', 'SystolicBP', 'RR', 'Temp', 'DiastolicBP', 'BaseExcess', 'Potassium', 'PCO2', 'pH', 'PO2',
     #          'Bicarb', 'ALP', 'ALT (GPT)', 'AnionGap', 'AST (GOT)', 'Calcium', 'Creatinine', 'Glucose', 'Magnesium', 'Phosphorus',
     #          'Sodium', '']
-    codes = [u'52.0-1', u'198.0-1', u'211.0-1', u'455.0-1', u'618.0-1', u'678.0-1', u'4552.0-1', u'52.0-2', u'198.0-2',
-             u'211.0-2', u'455.0-2', u'618.0-2', u'678.0-2', u'4552.0-2', u'52.0-3', u'198.0-3', u'211.0-3', u'455.0-3',
-             u'618.0-3', u'678.0-3', u'4552.0-3', u'new_id', u'Response']
-    names = ['MAP1', 'GCS1', 'HR1', 'SystolicBP1', 'RR1', 'Temp1', 'DiastolicBP1',
-             'MAP2', 'GCS2', 'HR2', 'SystolicBP2', 'RR2', 'Temp2', 'DiastolicBP2',
-             'MAP3', 'GCS3', 'HR3', 'SystolicBP3', 'RR3', 'Temp3', 'DiastolicBP3', 'new_id', 'Response']
+    codes = [u'52.0-1', u'198.0-1', u'211.0-1', u'455.0-1', u'618.0-1', u'678.0-1', u'4552.0-1', u'50002.0-1', u'50006.0-1',
+             u'50007.0-1', u'50009.0-1', u'50012.0-1', u'50016.0-1', u'50018.0-1', u'50019.0-1', u'50025.0-1', u'50061.0-1',
+             u'50062.0-1', u'50068.0-1', u'50073.0-1', u'50079.0-1', u'50090.0-1', u'50140.0-1', u'50148.0-1', u'50170.0-1',
+             u'50177.0-1', u'50316.0-1', u'50383.0-1', u'50399.0-1', u'50428.0-1', u'50439.0-1', u'50440.0-1',
+             u'52.0-2', u'198.0-2', u'211.0-2', u'455.0-2', u'618.0-2', u'678.0-2', u'4552.0-2', u'50002.0-2', u'50006.0-2',
+             u'50007.0-2', u'50009.0-2', u'50012.0-2', u'50016.0-2', u'50018.0-2', u'50019.0-2', u'50025.0-2', u'50061.0-2',
+             u'50062.0-2', u'50068.0-2', u'50073.0-2', u'50079.0-2', u'50090.0-2', u'50140.0-2', u'50148.0-2', u'50170.0-2',
+             u'50177.0-2', u'50316.0-2', u'50383.0-2', u'50399.0-2', u'50428.0-2', u'50439.0-2', u'50440.0-2',
+             u'52.0-3', u'198.0-3', u'211.0-3', u'455.0-3', u'618.0-3', u'678.0-3', u'4552.0-3', u'50002.0-3', u'50006.0-3',
+             u'50007.0-3', u'50009.0-3', u'50012.0-3', u'50016.0-3', u'50018.0-3', u'50019.0-3', u'50025.0-3', u'50061.0-3',
+             u'50062.0-3', u'50068.0-3', u'50073.0-3', u'50079.0-3', u'50090.0-3', u'50140.0-3', u'50148.0-3', u'50170.0-3',
+             u'50177.0-3', u'50316.0-3', u'50383.0-3', u'50399.0-3', u'50428.0-3', u'50439.0-3', u'50440.0-3', u'new_id', u'Response']
+
+    names = ['MAP1', 'GCS1', 'HR1', 'SystolicBP1', 'RR1', 'Temp1', 'DiastolicBP1', 'BaseExcess1', 'Glucose1', 'Hemoglobin1',
+             'Potassium1', 'Sodium1', 'PCO21', 'pH1', 'PO2_1', 'CO2_1', 'ALP1', 'ALT(GPT)1', 'AnionGap1', 'AST(GOT)1', 'Calcium1',
+             'Creatinine1', 'Magnesium1', 'Phosphorus1', 'Bilirubin1', 'BUN1', 'WBC1', 'Hematocrit1', 'ProtimeINR1', 'Platelet1',
+             'Protime1', 'Partial Thromboplastin Time1',
+             'MAP2', 'GCS2', 'HR2', 'SystolicBP2', 'RR2', 'Temp2', 'DiastolicBP2', 'BaseExcess2', 'Glucose2', 'Hemoglobin2',
+             'Potassium2', 'Sodium2', 'PCO2_2', 'pH2', 'PO2_2', 'CO2_2', 'ALP2', 'ALT(GPT)2', 'AnionGap2', 'AST(GOT)2', 'Calcium2',
+             'Creatinine2', 'Magnesium2', 'Phosphorus2', 'Bilirubin2', 'BUN2', 'WBC2', 'Hematocrit2', 'ProtimeINR2', 'Platelet2',
+             'Protime2', 'Partial Thromboplastin Time2',
+             'MAP3', 'GCS3', 'HR3', 'SystolicBP3', 'RR3', 'Temp3', 'DiastolicBP3', 'BaseExcess3', 'Glucose3', 'Hemoglobin3',
+             'Potassium3', 'Sodium3', 'PCO2_3', 'pH3', 'PO2_3', 'CO2_3', 'ALP3', 'ALT(GPT)3', 'AnionGap3', 'AST(GOT)3', 'Calcium3',
+             'Creatinine3', 'Magnesium3', 'Phosphorus3', 'Bilirubin3', 'BUN3', 'WBC3', 'Hematocrit3', 'ProtimeINR3', 'Platelet3',
+             'Protime3', 'Partial Thromboplastin Time3',
+             'new_id', 'Response']
 
     code2name_dict = dict.fromkeys(codes)
     for i in range(len(codes)):
@@ -87,6 +107,11 @@ def UseNames(names_dict, cols):
         cols2.append(names_dict[c])
     return cols2
 
+
+def reScale(data):
+    for c in data.columns:
+        data[c] = preprocessing.scale(data[c])
+    return data
 
 
 if __name__ == '__main__':
@@ -124,25 +149,12 @@ if __name__ == '__main__':
     charts_labs_table_c = charts_labs_table_b[charts_labs_table_b['<halfMissing?'] == 1]
     del charts_labs_table_c['<halfMissing?']
 
-
-
-
-
-
     names = variableNames()
-
-    draw_histograms(charts_labs_table_c, charts_labs_table_c.columns, 3, 3, names)
 
     #============missing value imputation=========================================
     charts_labs_table_d = naImputation(charts_labs_table_c, charts_labs_table_c.columns)
-    draw_histograms(charts_labs_table_d, charts_labs_table_d.columns, 3, 3, names)
-    # draw_histograms(charts_labs_table_c[charts_labs_table_c.columns[:12]], charts_labs_table_c.columns[:12], 3, 4, names)
-    # draw_histograms(charts_labs_table_c[charts_labs_table_c.columns[12:24]], charts_labs_table_c.columns[12:24], 3, 4, names)
-    # draw_histograms(charts_labs_table_c[charts_labs_table_c.columns[24:]], charts_labs_table_c.columns[24:], 3, 4, names)
-
-    # transformation on the predictors
-
-
+    draw_histograms(charts_labs_table_c[charts_labs_table_c.columns[:16]], charts_labs_table_c.columns[:16], 4, 4, names)
+    draw_histograms(charts_labs_table_c[charts_labs_table_c.columns[16:]], charts_labs_table_c.columns[16:], 4, 4, names)
 
     # #prepare the sepsis patients' response variables
     #
@@ -155,13 +167,26 @@ if __name__ == '__main__':
 
     charts_labs_table_d['new_id'] = charts_labs_table_d.index
     Xs_1 = charts_labs_table_d[charts_labs_table_d['new_id'].isin(response_1)]
-    Xs_1['Response'] = 1
     Xs_0 = charts_labs_table_d[charts_labs_table_d['new_id'].isin(response_0)]
-    Xs_0['Response'] = 0
 
     matrix_data = pd.concat([Xs_1, Xs_0])
     matrix_data.columns = UseNames(names, matrix_data.columns)
-    with open('matrix_data_sepsis3_clear24_vitals.pickle', 'wb') as f:
-        pickle.dump(matrix_data, f)
 
-    matrix_data.to_csv('matrix_data_sepsis3_clear24_vitals.csv', header=True, index=False)
+    # transformation on the predictors
+        # scale the data
+
+    matrix_data2 = matrix_data
+    del matrix_data['new_id']
+
+    response = np.concatenate([np.ones(len(Xs_1)), np.zeros(len(Xs_0))])
+
+    # matrix_data_b = preprocessing.StandardScaler().fit_transform(matrix_data)
+    # matrix_data_b = pd.DataFrame(matrix_data_b, columns=matrix_data.columns)
+    # matrix_data_b['Response'] = response
+
+    with open('matrix_data_sepsis3_clear24.pickle', 'wb') as f:
+        pickle.dump(matrix_data, f)
+    matrix_data['Response'] = response
+    matrix_data.to_csv('matrix_data_sepsis3_clear24.csv', header=True, index=False)
+
+
