@@ -216,8 +216,9 @@ if __name__ == '__main__':
     charts_table4 = charts_table3.drop_duplicates()
     del charts_table4['new_id']
     charts_table4.to_csv('charts_sepsis_hiv.csv', header=True, index=False)
-    Features.draw_histograms(charts_table4, 2, 3, [])
 
+    pos = charts_table4[charts_table4['hospital_expire_flg'] == 'Y']
+    neg = charts_table4[charts_table4['hospital_expire_flg'] == 'N']
     # # ========================== analyze patient mortalities ===================
 
     # ==================================
