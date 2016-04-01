@@ -291,7 +291,7 @@ if __name__ == '__main__':
     # export the patient ids to select the antibiotics data from SQL database
     pts_bld_ids_sepsis3 = bld2[['subject_id', 'hospital_seq']]
     pts_bld_ids_sepsis3 = pts_bld_ids_sepsis3.drop_duplicates()
-    pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
+    # pts_bld_ids_sepsis3.to_csv('pts_bld_ids_sepsis3.csv', header=True)
 
     # extract the useful bld data columns
     pts_bld = bld2[['new_id', 'itemid', 'charttime']]
@@ -331,6 +331,9 @@ if __name__ == '__main__':
     pts_abx_bld = selectPatients(pts_abx2, pts_bld2, pts_abx_bld_ids0)
     pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))  #9,117 patients
     #
+    with open('pts_abx_bld.pickle', 'wb') as f:
+        pickle.dump(pts_abx_bld, f)
+
     # with open('pts_abx_bld_id.pickle', 'wb') as f:
     #     pickle.dump(pts_abx_bld_id, f)
 

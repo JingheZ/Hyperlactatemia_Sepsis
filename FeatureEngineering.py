@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import mode
 from sklearn import preprocessing
 
+
 def lastsValues(d, n=3):
     f = lambda d: d[-1]
     return f
