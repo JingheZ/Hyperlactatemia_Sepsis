@@ -12,6 +12,8 @@ import PopulationExtraction_hospitalAdm as extraction
 import cPickle as pickle
 import FeatureEngineering as Features
 from sklearn import preprocessing
+from sklearn import cross_validation, svm, linear_model, metrics
+
 
 def Convert2Time(data, colname):
     f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
@@ -71,7 +73,8 @@ def variableExtract(data, events, ptids):
         data2 = data[data['new_id'] == pid]
         for m in range(len(times2)):
             diff_hours = (eventtime - times2[m]).total_seconds() / 3600.
-            if (diff_hours <= 24) and (diff_hours >= 0):
+            # if (diff_hours <= 12) and (diff_hours >= -12):
+            if diff_hours >= -12:
                 variables.append(data2.iloc[m])
         data_new += variables
     return data_new
@@ -142,6 +145,27 @@ def computeMEWS(data):
     return score
 
 
+def string2bin(data):
+    f = lambda x: 1 if x == 'Y' else 0
+    data2 = map(f, data)
+    return data2
+
+
+def otherMetrics(total, pos, tpr, fpr):
+    def measures(tpr, fpr, total=124, pos=19):
+        neg = total - pos
+        tp = round(tpr * pos)
+        fp = fpr * neg
+        tn = neg - fp
+        tnr = tn / float(neg)
+        precision = tp / float(tp + fp)
+        acc = float(tp + tn) / total
+        f1 = 2 * precision * tpr / float(precision + tpr)
+        return [tnr, precision, acc, f1]
+    res = map(measures, tpr, fpr)
+    return res
+
+
 if __name__ == '__main__':
 
     # ============================= get all HIV patients that meet the sepsis criteria ==============================
@@ -180,7 +204,6 @@ if __name__ == '__main__':
 
     pts_sofa_hiv_id = list(set(infos_sofa2_id).intersection(set(hiv_pts_id))) # 386 patients
 
-    # select the vitals of these patients
 
     # select vital signs for these patients
     charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
@@ -198,9 +221,15 @@ if __name__ == '__main__':
     pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))
     charts_sepsis_hiv_pts_ids = list(set(pts_abx_bld_id).intersection(pts_sofa_hiv_id))
 
-    charts_variables0 = variableExtract(charts_x2, pts_abx_bld, charts_sepsis_hiv_pts_ids) #214
+    infos_hiv_sepsis_hospital_info = infos_sofa2[infos_sofa2['new_id'].isin(charts_sepsis_hiv_pts_ids)]
+    infos_hiv_sepsis_hospital_info = infos_hiv_sepsis_hospital_info[['new_id', 'hospital_admit_dt', 'hospital_expire_flg']]
+    sepsis_hiv_infos = pd.merge(infos_hiv_sepsis_hospital_info, pts_abx_bld, on='new_id', how='left')
+    sepsis_hiv_infos['adm_sepsis_time'] = extraction.timeDiff(sepsis_hiv_infos['charttime'], sepsis_hiv_infos['hospital_admit_dt'])
+    sepsis_hiv_infos['adm_sepsis_time'].describe()
+
+    charts_variables0 = variableExtract(charts_x2, pts_abx_bld, charts_sepsis_hiv_pts_ids)
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    charts_ids = set(charts_variables['new_id'].values) #  57 patients
+    charts_ids = set(charts_variables['new_id'].values) #  143 patients
 
     charts_table = charts_variables.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-1:])
 
@@ -219,6 +248,30 @@ if __name__ == '__main__':
 
     pos = charts_table4[charts_table4['hospital_expire_flg'] == 'Y']
     neg = charts_table4[charts_table4['hospital_expire_flg'] == 'N']
+
+    predictors = np.array(charts_table4[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
+    predictors = np.array(charts_table4[['MEWS_score']])
+    targets = np.array(charts_table4['hospital_expire_flg'].tolist())
+
+    model = linear_model.LogisticRegression(penalty='l2')
+    cv_scores = cross_validation.cross_val_predict(model, predictors, targets, cv=5)
+    metrics.accuracy_score(targets, cv_scores)
+    metrics.confusion_matrix(targets, cv_scores)
+    lr_report = metrics.classification_report(targets, cv_scores)
+    print(lr_report)
+
+    targets_num = string2bin(targets)
+    Mews = np.array(charts_table4['MEWS_score'].tolist())
+    cv_scores_num = string2bin(cv_scores)
+    fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews, pos_label=1)
+    metrics.auc(fpr, tpr)
+
+    res = otherMetrics(124, 19, tpr, fpr)
+    MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
+    res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1'])
+    MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
+    MEWS_results.to_csv('MEWS_prediction_pos_mortality.csv', header=True)
+
     # # ========================== analyze patient mortalities ===================
 
     # ==================================
