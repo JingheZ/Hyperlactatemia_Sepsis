@@ -247,7 +247,7 @@ def extractPredictor(data, events, ptids):
     data_new = []
     for i in range(len(ptids)):
         pid = ptids[i]
-        eventtime = events[events['new_id'] == pid]['sepsis_time'].values[0]
+        eventtime = events[events['new_id'] == pid]['sepsis_lac_time'].values[0]
         f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
         times = data[data['new_id'] == pid]['charttime'].values
         times2 = map(f, times)
@@ -255,7 +255,7 @@ def extractPredictor(data, events, ptids):
         data2 = data[data['new_id'] == pid]
         for m in range(len(times2)):
             diff_hours = (eventtime - times2[m]).total_seconds() / 3600.
-            if (diff_hours <= 12) and (diff_hours >= 0):
+            if (diff_hours <= 12) and (diff_hours >= -12):
                 variables.append(data2.iloc[m])
         data_new += variables
     return data_new
@@ -423,11 +423,15 @@ if __name__ == '__main__':
     pd.Series(sepsis_lactate_id).to_csv('ptids_sepsis3def_lactate2.csv', header=True)
 
 
+    with open('sepsis_lactate_infos.pickle', 'rb') as f:
+        sepsis_lactate_infos_pd = pickle.load(f)
+
+
     #=====================extract the lab and vitals of the patients who meet the sepsis 3 definition and lactate > 2==============
     # y response: the patient is able to clear lactate in 12 hours from sepsis onset
-    sepsis_lactate_infos_pd['clear_duration'] = timeDiff(sepsis_lactate_infos_pd['clear_time'], sepsis_lactate_infos_pd['sepsis_time'])
-    sepsis_lactate_infos_pd['normalize_duration'] = timeDiff(sepsis_lactate_infos_pd['normalize_time'], sepsis_lactate_infos_pd['sepsis_time'])
-    sepsis_lactate_infos_pd['last_duration'] = timeDiff(sepsis_lactate_infos_pd['last_lac_time'], sepsis_lactate_infos_pd['sepsis_time'])
+    sepsis_lactate_infos_pd['clear_duration'] = timeDiff(sepsis_lactate_infos_pd['clear_time'], sepsis_lactate_infos_pd['sepsis_lac_time'])
+    sepsis_lactate_infos_pd['normalize_duration'] = timeDiff(sepsis_lactate_infos_pd['normalize_time'], sepsis_lactate_infos_pd['sepsis_lac_time'])
+    sepsis_lactate_infos_pd['last_duration'] = timeDiff(sepsis_lactate_infos_pd['last_lac_time'], sepsis_lactate_infos_pd['sepsis_lac_time'])
 
     sepsis_lactate_infos_pd['cleared?'] = fillResponse(sepsis_lactate_infos_pd['clear_time'])
     sepsis_lactate_infos_pd['normalized?'] = fillResponse(sepsis_lactate_infos_pd['normalize_time'])
@@ -435,7 +439,7 @@ if __name__ == '__main__':
     sepsis_lactate_infos_pd['clear_duration'] = fillEmpty(sepsis_lactate_infos_pd['clear_duration'], sepsis_lactate_infos_pd['last_duration'])
     sepsis_lactate_infos_pd['normalize_duration'] = fillEmpty(sepsis_lactate_infos_pd['normalize_duration'], sepsis_lactate_infos_pd['last_duration'])
 
-    sepsis_lactate_infos_pd2 = sepsis_lactate_infos_pd[sepsis_lactate_infos_pd['last_duration'] > 0] # 718 patients
+    sepsis_lactate_infos_pd2 = sepsis_lactate_infos_pd[sepsis_lactate_infos_pd['last_duration'] > 0] # 741 patients
     sepsis_lactate_id2 = sepsis_lactate_infos_pd2['new_id'].values
 
     with open('sepsis_lactate_infos_times.pickle', 'wb') as f:
@@ -456,7 +460,7 @@ if __name__ == '__main__':
 
     charts_variables0 = extractPredictor(charts_x2, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    charts_ids = set(charts_variables['new_id'].values) # 618 patients
+    charts_ids = set(charts_variables['new_id'].values) # 641 patients
 
     with open('charts_variables_sepsis3.pickle', 'wb') as f:
         pickle.dump(charts_variables, f)
@@ -473,7 +477,7 @@ if __name__ == '__main__':
 
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     labs_variables = pd.DataFrame(labs_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    labs_ids = set(labs_variables['new_id'].values)  # patients
+    labs_ids = set(labs_variables['new_id'].values)  # 729 patients
 
     with open('labs_variables_sepsis3.pickle', 'wb') as f:
         pickle.dump(labs_variables, f)
@@ -482,5 +486,6 @@ if __name__ == '__main__':
     charts_labs = charts_labs.sort(['new_id', 'itemid', 'charttime'], ascending=[1, 1, 1], inplace=False)
     with open('predictors_sepsis3.pickle', 'wb') as f:
         pickle.dump(charts_labs, f)
-
+    charts_labs_ids = set(charts_labs['new_id'].values)  # 739 patients
+    print 'patient numbers: %i' % len(charts_labs_ids)
 
