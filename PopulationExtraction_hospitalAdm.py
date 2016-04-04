@@ -255,7 +255,7 @@ def extractPredictor(data, events, ptids):
         data2 = data[data['new_id'] == pid]
         for m in range(len(times2)):
             diff_hours = (eventtime - times2[m]).total_seconds() / 3600.
-            if (diff_hours <= 12) and (diff_hours >= -12):
+            if (diff_hours <= 12) and (diff_hours >= -24):
                 variables.append(data2.iloc[m])
         data_new += variables
     return data_new
@@ -460,7 +460,7 @@ if __name__ == '__main__':
 
     charts_variables0 = extractPredictor(charts_x2, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    charts_ids = set(charts_variables['new_id'].values) # 641 patients
+    charts_ids = set(charts_variables['new_id'].values) # 723 patients
 
     with open('charts_variables_sepsis3.pickle', 'wb') as f:
         pickle.dump(charts_variables, f)
@@ -477,7 +477,7 @@ if __name__ == '__main__':
 
     labs_variables0 = extractPredictor(labs_x, sepsis_lactate_infos_pd2, sepsis_lactate_id2)
     labs_variables = pd.DataFrame(labs_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    labs_ids = set(labs_variables['new_id'].values)  # 729 patients
+    labs_ids = set(labs_variables['new_id'].values)  # 741 patients
 
     with open('labs_variables_sepsis3.pickle', 'wb') as f:
         pickle.dump(labs_variables, f)
