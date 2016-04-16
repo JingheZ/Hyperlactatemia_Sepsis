@@ -161,7 +161,8 @@ def otherMetrics(total, pos, tpr, fpr):
         precision = tp / float(tp + fp)
         acc = float(tp + tn) / total
         f1 = 2 * precision * tpr / float(precision + tpr)
-        return [tnr, precision, acc, f1]
+        f2 = 5 * precision * tpr / float(4 * precision + tpr)
+        return [tnr, precision, acc, f1, f2]
     res = map(measures, tpr, fpr)
     return res
 
@@ -268,11 +269,14 @@ if __name__ == '__main__':
 
     res = otherMetrics(124, 19, tpr, fpr)
     MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
-    res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1'])
+    res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1', 'F2'])
     MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
     MEWS_results.to_csv('MEWS_prediction_pos_mortality.csv', header=True)
+    MEWS_results = pd.read_csv('MEWS_prediction_pos_mortality.csv')
 
     # # ========================== analyze patient mortalities ===================
+
+    
 
     # ==================================
     #
@@ -283,23 +287,3 @@ if __name__ == '__main__':
     # mortalities = mortalityComputation(infos_hiv_sepsis)
     #
     #
-    # # ========================== analyze the prediction performance of MEWS =========================================
-    # # ============== get the variables values in MEWS ========================================
-    #
-    # '''Respiratory rate (618); Heart rate (211); Systolic blood pressure (455 value1num ); Conscious level(GCS 198); Temperature (678); Hourly urine output (for previous 2 hours)'''
-    # charts = pd.read_csv("pts_vitals1b.csv")
-    # # get the hospital_seq info for sofa data
-    # hospseqs = pd.read_csv('hospseqs_vitals.csv', header=None)
-    # hospseqs.columns = ['hospital_seq']
-    # charts['hospital_seq'] = hospseqs['hospital_seq']
-    # items = [618, 678, 198, 455, 211]
-    # charts2 = extraction.dataClean(charts, 'hospital_seq', 'charttime',  items, hiv_sepsis_pts_id)
-    #
-    # charts3 = charts2[['new_id', 'charttime', 'itemid', 'value1num']]
-    # charts3 = charts3.sort(['new_id', 'charttime'], ascending=[1, 1], inplace=False)
-    # ptids = list(set(hiv_sepsis_pts_id).intersection(set(charts3['new_id'].values)))
-    # ptids.sort()
-    #
-    # # get the IV fluids of patients
-    # variables = variableExtract(charts3, infos_hiv_sepsis, ptids)
-    # x = infos_hiv_sepsis[['icustay_intime', 'icustay_outtime', 'charttime']]
