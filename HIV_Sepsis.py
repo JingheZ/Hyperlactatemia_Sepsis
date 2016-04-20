@@ -166,8 +166,10 @@ def otherMetrics(total, pos, tpr, fpr):
     res = map(measures, tpr, fpr)
     return res
 
-def temp_c2f(data):
-    pass
+
+def temp_c2f(df):
+    df.loc[df.itemid == 676, 'valuenum'] = df.loc[df.itemid == 676, 'valuenum'] * 9. / 5 + 32
+    return df
 
 
 def consistentItemid_2(labs_x):
@@ -178,12 +180,16 @@ def consistentItemid_2(labs_x):
     labs_x2['itemid'] = labs_x2['itemid'].replace([8113], 618)
     labs_x2['itemid'] = labs_x2['itemid'].replace([818], 50010)
     labs_x2['itemid'] = labs_x2['itemid'].replace([1531], 50010)
-
     labs_x2['itemid'] = labs_x2['itemid'].replace([677], 676)
+    labs_x2_2 = temp_c2f(labs_x2)
     labs_x2['itemid'] = labs_x2['itemid'].replace([679], 678)
+    labs_x2['itemid'] = labs_x2['itemid'].replace([676], 678)
     return labs_x2
 
+
 def addCD4():
+    pass
+
 
 if __name__ == '__main__':
 
@@ -227,17 +233,24 @@ if __name__ == '__main__':
     # select vital signs for these patients
     charts = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
     charts_x = extraction.dataClean(charts, [], 'charttime',  [211, 1332, 1341, 618, 3603, 8113, 676, 677, 678, 679, 455,818,1531,198], pts_sofa_hiv_id)
-    # # get the diastolic BP
-    # charts_SDBP = charts_x[charts_x['itemid'] == 455]
-    # charts_SDBP['itemid'] = 4552
-    # charts_SDBP['value1num'] = charts_SDBP['value2num']
-    # charts_x = pd.concat([charts_x, charts_SDBP])
+
     charts_x = charts_x[['new_id', 'charttime', 'itemid', 'value1num']]
     charts_x2 = charts_x.rename(columns={'value1num': 'valuenum'})
 
     #=======================add CD4 counts and lactate clearance ======================================
-    labs = pd.read_csv("pts_bld_sepsis3_vitals_hospitaladm.csv")
-    labs_x = extraction.dataClean(charts, [], 'charttime',  [50010, 50356], pts_sofa_hiv_id)
+    # ===lactate values from lab tests=========
+    labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
+    labs_x = extraction.dataClean(labs, [], 'charttime',  [50010, 50356], pts_sofa_hiv_id)
+    labs_x2 = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
+
+    #combine the lactates from both charts and tests=========
+    Xs = pd.concat([charts_x2, labs_x2])
+
+
+
+
+
+
 
 
     with open('pts_abx_bld.pickle', 'rb') as f:
