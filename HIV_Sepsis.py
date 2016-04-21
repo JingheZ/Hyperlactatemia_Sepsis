@@ -13,7 +13,7 @@ import cPickle as pickle
 import FeatureEngineering as Features
 from sklearn import preprocessing
 from sklearn import cross_validation, svm, linear_model, metrics
-
+import copy
 
 def Convert2Time(data, colname):
     f = lambda x: datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
@@ -171,7 +171,6 @@ def temp_c2f(df):
     df.loc[df.itemid == 676, 'valuenum'] = df.loc[df.itemid == 676, 'valuenum'] * 9. / 5 + 32
     return df
 
-
 def consistentItemid_2(labs_x):
     labs_x2 = labs_x
     labs_x2['itemid'] = labs_x2['itemid'].replace([1332], 211)
@@ -181,14 +180,16 @@ def consistentItemid_2(labs_x):
     labs_x2['itemid'] = labs_x2['itemid'].replace([818], 50010)
     labs_x2['itemid'] = labs_x2['itemid'].replace([1531], 50010)
     labs_x2['itemid'] = labs_x2['itemid'].replace([677], 676)
-    labs_x2_2 = temp_c2f(labs_x2)
+    labs_x2 = temp_c2f(labs_x2)
     labs_x2['itemid'] = labs_x2['itemid'].replace([679], 678)
     labs_x2['itemid'] = labs_x2['itemid'].replace([676], 678)
     return labs_x2
 
 
-def addCD4():
-    pass
+def imputeMedian(df, names):
+    for n in names:
+        df[n].fillna(df[n].median(), inplace=True)
+    return df
 
 
 if __name__ == '__main__':
@@ -245,14 +246,10 @@ if __name__ == '__main__':
 
     #combine the lactates from both charts and tests=========
     Xs = pd.concat([charts_x2, labs_x2])
+    Xs_2 = consistentItemid_2(Xs)
 
 
-
-
-
-
-
-
+    # ===============select patients ==================================
     with open('pts_abx_bld.pickle', 'rb') as f:
         pts_abx_bld = pickle.load(f)
     pts_abx_bld_id = list(set(pts_abx_bld['new_id'].values))
@@ -264,16 +261,23 @@ if __name__ == '__main__':
     sepsis_hiv_infos['adm_sepsis_time'] = extraction.timeDiff(sepsis_hiv_infos['charttime'], sepsis_hiv_infos['hospital_admit_dt'])
     sepsis_hiv_infos['adm_sepsis_time'].describe()
 
-    charts_variables0 = variableExtract(charts_x2, pts_abx_bld, charts_sepsis_hiv_pts_ids)
+
+    charts_variables0 = variableExtract(Xs_2, pts_abx_bld, charts_sepsis_hiv_pts_ids)
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
-    charts_ids = set(charts_variables['new_id'].values) #  143 patients
+    charts_ids = set(charts_variables['new_id'].values)# 189 patients
 
     charts_table = charts_variables.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-1:])
+    charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Lactate', 'CD4']# charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Lactate', 'CD4']
+    charts_table['CD4'].describe()
+    # charts_table['CD4'].count() # only 45 patients with available CD4 counts
+    # charts_table = charts_table.drop('Lactate', 1)
+    # charts_table = charts_table.drop('CD4', 1)
 
-    imputer = preprocessing.Imputer(missing_values='NaN', strategy='median')
-    charts_table2 = imputer.fit_transform(charts_table)
-    charts_table2 = pd.DataFrame(charts_table2, columns=['GCS', 'HR', 'SBP', 'RR', 'Temp'])
-    charts_table2['new_id'] = charts_table.index
+    # imputer = preprocessing.Imputer(missing_values='NaN', strategy='median')
+    # charts_table2 = imputer.fit_transform(charts_table)
+
+    charts_table2 = imputeMedian(charts_table, ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Lactate', 'CD4'])
+    # charts_table2['new_id'] = charts_table.index
 
     charts_table2['MEWS_score'] = computeMEWS(charts_table2)
 
@@ -286,20 +290,20 @@ if __name__ == '__main__':
     pos = charts_table4[charts_table4['hospital_expire_flg'] == 'Y']
     neg = charts_table4[charts_table4['hospital_expire_flg'] == 'N']
 
-    predictors = np.array(charts_table4[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
+    # predictors = np.array(charts_table4[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
     predictors = np.array(charts_table4[['MEWS_score']])
     targets = np.array(charts_table4['hospital_expire_flg'].tolist())
 
-    model = linear_model.LogisticRegression(penalty='l2')
-    cv_scores = cross_validation.cross_val_predict(model, predictors, targets, cv=5)
-    metrics.accuracy_score(targets, cv_scores)
-    metrics.confusion_matrix(targets, cv_scores)
-    lr_report = metrics.classification_report(targets, cv_scores)
-    print(lr_report)
+    # model = linear_model.LogisticRegression(penalty='l1')
+    # cv_scores = cross_validation.cross_val_predict(model, predictors, targets, cv=5)
+    # metrics.accuracy_score(targets, cv_scores)
+    # metrics.confusion_matrix(targets, cv_scores)
+    # lr_report = metrics.classification_report(targets, cv_scores)
+    # print(lr_report)
 
     targets_num = string2bin(targets)
     Mews = np.array(charts_table4['MEWS_score'].tolist())
-    cv_scores_num = string2bin(cv_scores)
+    # cv_scores_num = string2bin(cv_scores)
     fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews, pos_label=1)
     metrics.auc(fpr, tpr)
 
@@ -307,7 +311,7 @@ if __name__ == '__main__':
     MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
     res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1', 'F2'])
     MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
-    MEWS_results.to_csv('MEWS_prediction_pos_mortality.csv', header=True)
+    MEWS_results.to_csv('MEWS_prediction_pos_mortality_v2.csv', header=True)
     MEWS_results = pd.read_csv('MEWS_prediction_pos_mortality.csv')
 
 
