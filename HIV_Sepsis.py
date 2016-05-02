@@ -233,13 +233,15 @@ def string2bin(data):
 
 
 def otherMetrics(total, pos, tpr, fpr):
-    def measures(tpr, fpr, total=124, pos=19):
+    def measures(tpr, fpr, total=total, pos=pos):
         neg = total - pos
         tp = round(tpr * pos)
         fp = fpr * neg
         tn = neg - fp
         tnr = tn / float(neg)
-        precision = tp / float(tp + fp)
+        precision = 0
+        if (tp + fp > 0):
+            precision = tp / float(tp + fp)
         acc = float(tp + tn) / total
         f1 = 2 * precision * tpr / float(precision + tpr)
         f2 = 5 * precision * tpr / float(4 * precision + tpr)
@@ -320,15 +322,15 @@ if __name__ == '__main__':
     charts_x = charts_x[['new_id', 'charttime', 'itemid', 'value1num']]
     charts_x2 = charts_x.rename(columns={'value1num': 'valuenum'})
 
-    #=======================add CD4 counts and lactate clearance ======================================
-    # ===lactate values from lab tests=========
+    #=======================add CD4 counts======================================
+    # add oxygen saturation
     labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
-    labs_x = extraction.dataClean(labs, [], 'charttime',  [50010, 50356], pts_sofa_hiv_id)
-    labs_x2 = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
+    labs_x = extraction.dataClean(labs, [], 'charttime', [50015], pts_sofa_hiv_id)
+    o2 = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
 
     #combine the lactates from both charts and tests=========
-    Xs = pd.concat([charts_x2, labs_x2])
-    Xs_2 = consistentItemid_2(Xs)
+    Xs = pd.concat([charts_x2, o2])
+    # Xs_2 = consistentItemid_2(Xs)
 
 
     # ===============select patients ==================================
@@ -345,51 +347,40 @@ if __name__ == '__main__':
 
 
     # charts_variables0 = variableExtract(Xs_2, pts_abx_bld, charts_sepsis_hiv_pts_ids)
-    charts_variables0 = variableExtract(charts_x2, pts_abx_bld, charts_sepsis_hiv_pts_ids)
+    charts_variables0 = variableExtract(Xs, pts_abx_bld, charts_sepsis_hiv_pts_ids)
     charts_variables = pd.DataFrame(charts_variables0, columns=['new_id', 'charttime', 'itemid', 'valuenum'])
     charts_ids = set(charts_variables['new_id'].values)# 189 patients $ 143 patients
 
     charts_table = charts_variables.pivot_table(values='valuenum', index='new_id', columns='itemid', aggfunc=lambda d: d[-1:])
-    charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp']# charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Lactate', 'CD4']
-
+    charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Oxyg']# charts_table.columns = ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Lactate', 'CD4']
+    charts_table['new_id'] = charts_table.index
     infos_sofa2_hospital_expire = infos_sofa2[['new_id', 'hospital_expire_flg']]
     # add abs CD4 counts
     cd4 = pd.read_csv("pts_bld_sepsis3_CD4_hospitaladm.csv")
     cd4_x = extraction.dataClean(cd4, [], [],  [50318], charts_ids)
-    charts_table_cd = pd.merge(charts_table, cd4_x, on='new_id', how='left')
 
-    charts_table_cd = charts_table_cd[['new_id', 'GCS', 'HR', 'SBP', 'RR', 'Temp', 'valuenum']]
+    charts_table_cd = pd.merge(charts_table, cd4_x, on='new_id', how='left')
+    charts_table_cd = pd.merge(charts_table_cd, infos_sofa2_hospital_expire, on='new_id', how='left')
+
+    charts_table_cd = charts_table_cd[['new_id', 'GCS', 'HR', 'SBP', 'RR', 'Temp', 'Oxyg', 'valuenum', 'hospital_expire_flg']]
     charts_table_cd = charts_table_cd.rename(columns={'valuenum': 'CD4'})
-    charts_table2 = imputeMedian(charts_table_cd, ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'CD4'])
+    charts_table2 = imputeMedian(charts_table_cd, ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'Oxyg', 'CD4'])
 
     charts_table2['MEWS_score'] = computeMEWS(charts_table2)
+    charts_table2['NEWS_score'] = computeNEWS(charts_table2)
 
-    # add oxygen saturation
-    labs = pd.read_csv("pts_bld_sepsis3_labs_hospitaladm.csv")
-    labs_x = extraction.dataClean(labs, [], 'charttime', [50015], charts_table2['new_id'])
-    o2 = labs_x[['new_id', 'charttime', 'itemid', 'valuenum']]
-    # charts_table2['new_id'] = charts_table.index
-    charts_table_cd_o2 = pd.merge(charts_table2, o2, on='new_id', how='left')
-    charts_table3 = pd.merge(charts_table_cd_o2, infos_sofa2_hospital_expire, on='new_id', how='left')
+    charts_table3 = charts_table2.drop_duplicates()
 
-    charts_table4 = charts_table3[['new_id', 'GCS', 'HR', 'SBP', 'RR', 'Temp', 'CD4', 'MEWS_score', 'valuenum', 'hospital_expire_flg']]
-    charts_table4 = charts_table4.rename(columns={'valuenum': 'Oxyg'})
-    charts_table4 = imputeMedian(charts_table4, ['GCS', 'HR', 'SBP', 'RR', 'Temp', 'CD4', 'Oxyg'])
+    del charts_table3['new_id']
+    charts_table3.to_csv('charts_sepsis_hiv_cd4.csv', header=True, index=False)
 
-    charts_table4['NEWS_score'] = computeNEWS(charts_table4)
-
-    # charts_table4 = charts_table3.drop_duplicates()
-
-    del charts_table4['new_id']
-    charts_table4.to_csv('charts_sepsis_hiv_cd4.csv', header=True, index=False)
-
-    pos = charts_table4[charts_table4['hospital_expire_flg'] == 'Y']
-    neg = charts_table4[charts_table4['hospital_expire_flg'] == 'N']
+    pos = charts_table3[charts_table3['hospital_expire_flg'] == 'Y']
+    neg = charts_table3[charts_table3['hospital_expire_flg'] == 'N']
 
     # predictors = np.array(charts_table4[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
-    predictors = np.array(charts_table4[['MEWS_score']])
-    predictors2 = np.array(charts_table4[['NEWS_score']])
-    targets = np.array(charts_table4['hospital_expire_flg'].tolist())
+    predictors = np.array(charts_table3[['MEWS_score']])
+    predictors2 = np.array(charts_table3[['NEWS_score']])
+    targets = np.array(charts_table3['hospital_expire_flg'].tolist())
 
     # model = linear_model.LogisticRegression(penalty='l1')
     # cv_scores = cross_validation.cross_val_predict(model, predictors, targets, cv=5)
@@ -399,15 +390,15 @@ if __name__ == '__main__':
     # print(lr_report)
 
     targets_num = string2bin(targets)
-    Mews = np.array(charts_table4['NEWS_score'].tolist())
+    Mews = np.array(charts_table3['NEWS_score'].tolist())
     # cv_scores_num = string2bin(cv_scores)
     fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews, pos_label=1)
     metrics.auc(fpr, tpr)
 
-    res = otherMetrics(124, 19, tpr, fpr)
+    res = otherMetrics(144, 22, tpr, fpr)
     MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
     res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1', 'F2'])
     MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
-    MEWS_results.to_csv('NEWS_prediction_pos_mortality.csv', header=True)
+    MEWS_results.to_csv('NEWS_prediction_pos_mortality2.csv', header=True)
     MEWS_results = pd.read_csv('NEWS_prediction_pos_mortality.csv')
 
