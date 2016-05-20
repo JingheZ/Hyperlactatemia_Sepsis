@@ -274,6 +274,16 @@ def imputeMedian(df, names):
         df[n].fillna(df[n].median(), inplace=True)
     return df
 
+def prediction_results(targets_num, predictor, s):
+    fpr, tpr, thresholds = metrics.roc_curve(targets_num, predictor, pos_label=1)
+    auc_result = metrics.auc(fpr, tpr)
+
+    res = otherMetrics(144, 22, tpr, fpr)
+    MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
+    res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1', 'F2'])
+    MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
+    MEWS_results.to_csv(s + '_prediction_pos_mortality2.csv', header=True)
+    return auc_result
 
 if __name__ == '__main__':
 
@@ -395,16 +405,17 @@ if __name__ == '__main__':
     # print(lr_report)
 
     targets_num = string2bin(targets)
-    Mews0 = np.array(charts_table3['MEWS_score'].tolist())
-    Mews = np.array(charts_table3['MEWS0_CD4_score0'].tolist())
+    predictor0 = np.array(charts_table3['MEWS_score'].tolist())
+    predictor1 = np.array(charts_table3['MEWS0_CD4_score0'].tolist())
+    predictor2 = np.array(charts_table3['NEWS_score'].tolist())
+    predictor3 = np.array(charts_table3['NEWS1_CD4_score1'].tolist())
+
     # cv_scores_num = string2bin(cv_scores)
-    fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews0, pos_label=1)
-    metrics.auc(fpr, tpr)
 
-    res = otherMetrics(144, 22, tpr, fpr)
-    MEWS_results = pd.DataFrame(np.array([thresholds, tpr, fpr]).T, columns=['Threshold', 'TPR', 'FPR'])
-    res_pd = pd.DataFrame(np.array(res), columns=['tnr', 'precision', 'accuracy', 'F1', 'F2'])
-    MEWS_results = pd.concat([MEWS_results, res_pd], axis=1)
-    MEWS_results.to_csv('NEWS_prediction_pos_mortality2.csv', header=True)
-    MEWS_results = pd.read_csv('NEWS_prediction_pos_mortality.csv')
 
+    auc_mews = prediction_results(targets_num, predictor0, 'MEWS')
+    auc_mews1 = prediction_results(targets_num, predictor1, 'MEWS_CD4')
+    auc_news = prediction_results(targets_num, predictor2, 'NEWS')
+    auc_news1 = prediction_results(targets_num, predictor3, 'NEWS_CD4')
+
+    
