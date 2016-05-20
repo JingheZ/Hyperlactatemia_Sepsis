@@ -285,6 +285,14 @@ def prediction_results(targets_num, predictor, s):
     MEWS_results.to_csv(s + '_prediction_pos_mortality2.csv', header=True)
     return auc_result
 
+def cv_scores(f, X, y, s):
+    scores = cross_validation.cross_val_score(f, X, y, n_jobs=1, scoring=s, cv=5)
+    #['accuracy', 'adjusted_rand_score', 'average_precision', 'f1', 'log_loss', 'mean_squared_error', 'precision', 'r2', 'recall', 'roc_auc']
+    print('average %s score %.2f' % (s, np.mean(scores)))
+    print('std %s score %.2f' % (s, np.std(scores)))
+    return scores
+
+
 if __name__ == '__main__':
 
     # ============================= get all HIV patients that meet the sepsis criteria ==============================
@@ -411,11 +419,44 @@ if __name__ == '__main__':
     predictor3 = np.array(charts_table3['NEWS1_CD4_score1'].tolist())
 
     # cv_scores_num = string2bin(cv_scores)
-
-
     auc_mews = prediction_results(targets_num, predictor0, 'MEWS')
     auc_mews1 = prediction_results(targets_num, predictor1, 'MEWS_CD4')
     auc_news = prediction_results(targets_num, predictor2, 'NEWS')
     auc_news1 = prediction_results(targets_num, predictor3, 'NEWS_CD4')
 
-    
+    #===================classification==========================================
+    from sklearn import cross_validation, datasets, linear_model, svm, ensemble
+
+    X = np.array(charts_table3[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
+    y = np.array(targets_num)
+
+    # add bootstrapping
+    lr = linear_model.LogisticRegression(penalty='l1', class_weight='auto')
+    scores = cv_scores(lr, X, y, 'roc_auc')
+    scores = cv_scores(lr, X, y, 'recall')
+    scores = cv_scores(lr, X, y, 'precision')
+    scores = cv_scores(lr, X, y, 'accuracy')
+
+    svc = svm.SVC(kernel='linear', class_weight='auto')
+    scores = cv_scores(svc, X, y, 'roc_auc')
+    scores = cv_scores(svc, X, y, 'recall')
+    scores = cv_scores(svc, X, y, 'precision')
+    scores = cv_scores(svc, X, y, 'accuracy')
+
+    rf = ensemble.RandomForestClassifier(random_state=1, n_estimators=50)
+    scores = cv_scores(rf, X, y, 'roc_auc')
+    scores = cv_scores(rf, X, y, 'recall')
+    scores = cv_scores(rf, X, y, 'precision')
+    scores = cv_scores(rf, X, y, 'accuracy')
+
+    gb = ensemble.GradientBoostingClassifier(random_state=1, n_estimators=500)
+    scores = cv_scores(gb, X, y, 'roc_auc')
+    scores = cv_scores(gb, X, y, 'recall')
+    scores = cv_scores(gb, X, y, 'precision')
+    scores = cv_scores(gb, X, y, 'accuracy')
+
+    ada = ensemble.AdaBoostClassifier(random_state=1, n_estimators=500)
+    scores = cv_scores(ada, X, y, 'roc_auc')
+    scores = cv_scores(ada, X, y, 'recall')
+    scores = cv_scores(ada, X, y, 'precision')
+    scores = cv_scores(ada, X, y, 'accuracy')  
