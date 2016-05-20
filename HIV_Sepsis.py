@@ -374,12 +374,17 @@ if __name__ == '__main__':
     del charts_table3['new_id']
     charts_table3.to_csv('charts_sepsis_hiv_cd4.csv', header=True, index=False)
 
+
+    #================================================
+    charts_table3 = pd.read_csv('charts_sepsis_hiv_cd4_nomogram.csv')
+
     pos = charts_table3[charts_table3['hospital_expire_flg'] == 'Y']
     neg = charts_table3[charts_table3['hospital_expire_flg'] == 'N']
 
     # predictors = np.array(charts_table4[['GCS', 'HR', 'SBP', 'RR', 'Temp']])
-    predictors = np.array(charts_table3[['MEWS_score']])
-    predictors2 = np.array(charts_table3[['NEWS_score']])
+    # predictors = np.array(charts_table3[['MEWS_score']])
+    # predictors2 = np.array(charts_table3[['NEWS_score']])
+    # predictors3 = np.array(charts_table3[['MEWS0_CD4_score0']])
     targets = np.array(charts_table3['hospital_expire_flg'].tolist())
 
     # model = linear_model.LogisticRegression(penalty='l1')
@@ -390,9 +395,10 @@ if __name__ == '__main__':
     # print(lr_report)
 
     targets_num = string2bin(targets)
-    Mews = np.array(charts_table3['NEWS_score'].tolist())
+    Mews0 = np.array(charts_table3['MEWS_score'].tolist())
+    Mews = np.array(charts_table3['MEWS0_CD4_score0'].tolist())
     # cv_scores_num = string2bin(cv_scores)
-    fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews, pos_label=1)
+    fpr, tpr, thresholds = metrics.roc_curve(targets_num, Mews0, pos_label=1)
     metrics.auc(fpr, tpr)
 
     res = otherMetrics(144, 22, tpr, fpr)
